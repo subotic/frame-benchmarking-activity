@@ -163,7 +163,9 @@ pub mod pallet {
 
 		// An extrinsic which has two very different logical paths.
 		#[pallet::call_index(3)]
-		#[pallet::weight(u64::default())]
+		#[pallet::weight(
+		  T::WeightInfo::branch_true().max(T::WeightInfo::branch_false())
+		)]
 		pub fn branched_logic(origin: OriginFor<T>, branch: bool) -> DispatchResultWithPostInfo {
 			let _who = ensure_signed(origin)?;
 			if branch {
@@ -171,11 +173,11 @@ pub mod pallet {
 				(0..1337).for_each(|x| {
 					T::Hashing::hash(&x.encode());
 				});
-				Ok(().into())
+				Ok(T::WeightInfo::branch_true())
 			} else {
 				// This branch uses storage.
 				MyValue::<T>::put(69);
-				Ok(().into())
+				Ok(T::WeightInfo::branch_false())
 			}
 		}
 
@@ -249,7 +251,7 @@ pub mod pallet {
 			} else if nays >= ayes + not_voted {
 				Self::deposit_event(Event::<T>::Outcome { aye: false });
 			} else {
-				return Err(Error::<T>::NotComplete.into())
+				return Err(Error::<T>::NotComplete.into());
 			}
 
 			Votes::<T>::kill();

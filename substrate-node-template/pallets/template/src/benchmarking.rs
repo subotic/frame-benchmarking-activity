@@ -2,6 +2,7 @@
 
 #[allow(unused)]
 use super::{Pallet as Template, *};
+use codec::Encode;
 use frame_benchmarking::v2::{
 	account, benchmarks, impl_benchmark_test_suite, whitelisted_caller, BenchmarkError,
 };
@@ -53,7 +54,7 @@ fn set_votes<T: Config>(ayes: u32, nays: u32, abstain: u32) -> DispatchResultWit
 		} else if (i as u32) < ayes + nays + abstain {
 			Pallet::<T>::make_vote(RawOrigin::Signed(voter).into(), Vote::Abstain)?;
 		} else {
-			break
+			break;
 		}
 	}
 
@@ -79,19 +80,93 @@ mod benchmarks {
 			(0..i).for_each(|x| {
 				// Just add some kind of hashing here!
 				// Hint: Look at the pallet code for some copyable code!
+				T::Hashing::hash(&x.encode());
 			});
 		}
 	}
 
 	// Write a benchmark for the `counter` extrinsic.
+	#[benchmark]
+	fn counter(i: Linear<0, 255>) {
+		/* setup initial state */
+		let caller: T::AccountId = whitelisted_caller();
+		let origin = RawOrigin::Signed(caller);
+
+		/* execute extrinsic or function */
+		// this is safe to cast as the limit bove is equal to u8::MAX
+		#[extrinsic_call]
+		counter(origin, i as u8);
+
+		/* verify final state */
+		assert!(MyValue::<T>::get() == i as u8);
+	}
 
 	// Write a benchmark for the `claimer` extrinsic.
+	#[benchmark]
+	fn claimer(i: Linear<0, 255>) {
+		/* setup initial state */
+		let caller: T::AccountId = whitelisted_caller();
+		let origin = RawOrigin::Signed(caller.clone());
+
+		/* execute extrinsic or function */
+		#[extrinsic_call]
+		claimer(origin, i as u8);
+
+		/* verify final state */
+		assert!(MyMap::<T>::get(i as u8) == Some(caller));
+	}
 
 	// Write a benchmark for the `transfer_all` extrinsic.
 	// Hint: This is a valid line of code:
 	// `T::Currency::make_free_balance_be(&caller, balance);`
+	#[benchmark]
+	fn transfer_all(i: Linear<0, 255>) {
+		/* setup initial state */
+		let caller: T::AccountId = whitelisted_caller();
+		let origin = RawOrigin::Signed(caller.clone());
+
+		// Set the balance of the caller to `i`.
+		T::Currency::make_free_balance_be(&caller, i.into());
+
+		// Define the receiver.
+		let receiver: T::AccountId = account("receiver", 0, SEED);
+
+		/* execute extrinsic or function */
+		#[extrinsic_call]
+		transfer_all(origin, receiver.clone());
+
+		/* verify final state */
+		assert!(T::Currency::free_balance(&receiver) == i.into());
+	}
 
 	// Write **both** benchmarks needed for the branching function.
+	#[benchmark]
+	fn brancheded_logic_1(i: Linear<0, u8::MAX>) {
+		/* setup initial state */
+		let caller: T::AccountId = whitelisted_caller();
+		let origin = RawOrigin::Signed(caller.clone());
+
+		/* execute extrinsic or function */
+		#[extrinsic_call]
+		branched_logic(origin, true);
+
+		/* verify final state */
+		assert_eq!(MyValue::<T>::get(), 0);
+	}
+
+	#[benchmark]
+	fn brancheded_logic_2(i: Linear<0, u8::MAX>) {
+		/* setup initial state */
+		let caller: T::AccountId = whitelisted_caller();
+		let origin = RawOrigin::Signed(caller.clone());
+
+		/* execute extrinsic or function */
+		#[extrinsic_call]
+		branched_logic(origin, false);
+
+		/* verify final state */
+		assert_eq!(MyValue::<T>::get(), 69);
+	}
 
 	// For the next benchmarks, feel free to use the provided helper functions in this file.
 
